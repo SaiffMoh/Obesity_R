@@ -42,6 +42,8 @@ obesity_data$SCC <- as.factor(obesity_data$SCC)
 obesity_data$CALC <- as.factor(obesity_data$CALC)
 obesity_data$MTRANS <- as.factor(obesity_data$MTRANS)
 obesity_data$NObeyesdad <- as.factor(obesity_data$NObeyesdad)
+obesity_data$FCVC <- as.numeric(as.character(obesity_data$FCVC))
+
 
 obesity_data$BMI <- obesity_data$Weight / (obesity_data$Height^2)
 
@@ -61,12 +63,7 @@ debug_print("Tukey HSD: Pairwise Age differences across obesity groups")
 print(TukeyHSD(anova_age))
 
 # Exploratory Data Analysis - Visualizations
-hist(obesity_data$Age, 
-     col="lightblue", 
-     main="Age Distribution", 
-     xlab="Age", 
-     ylab="Frequency",
-     breaks=20)
+
 
 hist(obesity_data$BMI, 
      col="lightgreen", 
@@ -75,15 +72,7 @@ hist(obesity_data$BMI,
      ylab="Frequency",
      breaks=30)
 
-boxplot(obesity_data$Weight, 
-        col=rainbow(1), 
-        main="Weight Distribution",
-        ylab="Weight (kg)")
 
-boxplot(obesity_data$Height, 
-        col=rainbow(1), 
-        main="Height Distribution",
-        ylab="Height (m)")
 
 obesity_counts <- table(obesity_data$NObeyesdad)
 par(mar=c(8, 4, 4, 2))
@@ -96,6 +85,15 @@ barplot(obesity_counts,
         cex.names=0.7)
 par(mar=c(5, 4, 4, 2))
 
+par(mfrow=c(1,1))
+
+par(mfrow=c(2,2))
+hist(obesity_data$Age, col="lightblue", main="Age", xlab="Age")
+hist(obesity_data$Weight, col="lightgreen", main="Weight", xlab="Weight (kg)")
+hist(obesity_data$Height, col="coral", main="Height", xlab="Height (m)")
+hist(obesity_data$BMI, col="yellow", main="BMI", xlab="BMI")
+
+par(mfrow=c(1,1))
 
 hist(obesity_data$Weight, prob=TRUE, col="grey",
      main="Weight Distribution with Density",
@@ -111,7 +109,7 @@ lines(density(obesity_data$Age), col="red", lwd=2)
 
 
 # Correlation Matrix for Numeric Features
-numeric_features <- obesity_data[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "BMI")]
+numeric_features <- obesity_data[, c("Age", "Height", "Weight", "NCP", "CH2O", "FAF", "TUE", "BMI")]
 cor_matrix <- cor(numeric_features)
 
 debug_print("Correlation matrix for numeric features")
@@ -133,13 +131,12 @@ corrplot(cor_matrix,
          main="Correlation Matrix - Numeric Features",
          mar=c(0,0,2,0))
 
-
-plot(obesity_data$Height, obesity_data$Weight,
+plot(obesity_data$Weight, obesity_data$BMI,
      col=as.numeric(obesity_data$NObeyesdad),
      pch=19,
-     main="Weight vs Height by Obesity Level",
-     xlab="Height (m)",
-     ylab="Weight (kg)")
+     main="Weight vs BMI by Obesity Level",
+     xlab="Weight (kg)",
+     ylab="BMI")
 legend("topright", legend=levels(obesity_data$NObeyesdad),
        col=1:length(levels(obesity_data$NObeyesdad)),
        pch=19, cex=0.6)
@@ -154,13 +151,29 @@ legend("topright", legend=levels(obesity_data$NObeyesdad),
        col=1:length(levels(obesity_data$NObeyesdad)),
        pch=19, cex=0.6)
 
+
+plot(obesity_data$Height, obesity_data$Weight,
+     col=as.numeric(obesity_data$NObeyesdad),
+     pch=19,
+     main="Weight vs Height by Obesity Level",
+     xlab="Height (m)",
+     ylab="Weight (kg)")
+legend("topright", legend=levels(obesity_data$NObeyesdad),
+       col=1:length(levels(obesity_data$NObeyesdad)),
+       pch=19, cex=0.6)
+
+
+
+par(mar=c(9, 4, 4, 2))
 boxplot(BMI ~ NObeyesdad, 
         data=obesity_data,
         col=rainbow(7),
         main="BMI Distribution by Obesity Level",
         xlab="Obesity Level",
         ylab="BMI",
-        las=2)
+        las=2,
+        cex.axis=0.75)
+par(mar=c(5, 4, 4, 2))
 
 par(mfrow=c(2,3))
 
@@ -208,15 +221,9 @@ barplot(calc_counts,
         las=2,
         cex.names=0.8)
 
-par(mfrow=c(1,1))
 
-par(mfrow=c(2,2))
-hist(obesity_data$Age, col="lightblue", main="Age", xlab="Age")
-hist(obesity_data$Weight, col="lightgreen", main="Weight", xlab="Weight (kg)")
-hist(obesity_data$Height, col="coral", main="Height", xlab="Height (m)")
-hist(obesity_data$BMI, col="yellow", main="BMI", xlab="BMI")
-par(mfrow=c(1,1))
 
+par(mfrow=c(1,1))
 
 # K-Means Clustering
 cluster_data <- obesity_data[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "BMI")]
@@ -294,16 +301,18 @@ debug_print("Confusion matrix: Decision Tree")
 print(tree_table)
 
 # Visualize confusion matrix as heatmap
-par(mfrow=c(1,2))
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))  # extra margin space for long class labels
 image(1:ncol(tree_table), 1:nrow(tree_table), t(as.matrix(tree_table)), 
-      col=colorRampPalette(c("white", "lightblue", "darkblue"))(20),
-      xlab="Actual", ylab="Predicted", main="Decision Tree Confusion Matrix",
-      xaxt="n", yaxt="n")
-axis(1, at=1:ncol(tree_table), labels=colnames(tree_table), las=2, cex.axis=0.7)
-axis(2, at=1:nrow(tree_table), labels=rownames(tree_table), las=2, cex.axis=0.7)
+        col=colorRampPalette(c("white", "lightblue", "darkblue"))(20),
+        xlab="Actual", ylab="Predicted", main="Decision Tree Confusion Matrix",
+        xaxt="n", yaxt="n")
+axis(1, at=1:ncol(tree_table), labels=colnames(tree_table), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(tree_table), labels=rownames(tree_table), las=2, cex.axis=0.6)
 text(rep(1:ncol(tree_table), each=nrow(tree_table)), 
      rep(1:nrow(tree_table), ncol(tree_table)), 
-     as.vector(t(tree_table)), col="white", cex=0.8)
+          as.vector(t(tree_table)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
 
 # Bar plot of correct vs incorrect predictions
 correct <- sum(diag(tree_table))
@@ -312,7 +321,8 @@ barplot(c(correct, incorrect),
         names.arg=c("Correct", "Incorrect"),
         col=c("green", "red"),
         main="Decision Tree Predictions",
-        ylab="Count")
+        ylab="Count",
+        ylim=c(0, max(correct, incorrect) * 1.1))
 par(mfrow=c(1,1))
 
 tree_accuracy <- sum(diag(tree_table)) / sum(tree_table)
@@ -337,6 +347,29 @@ svm_table <- table(Predicted=svm_pred, Actual=test.data$NObeyesdad)
 debug_print("Confusion matrix: SVM")
 print(svm_table)
 
+# Visualize SVM confusion matrix as heatmap
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))
+image(1:ncol(svm_table), 1:nrow(svm_table), t(as.matrix(svm_table)), 
+      col=colorRampPalette(c("white", "lightgreen", "darkgreen"))(20),
+      xlab="Actual", ylab="Predicted", main="SVM Confusion Matrix",
+      xaxt="n", yaxt="n")
+axis(1, at=1:ncol(svm_table), labels=colnames(svm_table), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(svm_table), labels=rownames(svm_table), las=2, cex.axis=0.6)
+text(rep(1:ncol(svm_table), each=nrow(svm_table)), 
+     rep(1:nrow(svm_table), ncol(svm_table)), 
+        as.vector(t(svm_table)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
+# Bar plot of correct vs incorrect predictions for SVM
+correct_svm <- sum(diag(svm_table))
+incorrect_svm <- sum(svm_table) - correct_svm
+barplot(c(correct_svm, incorrect_svm), 
+        names.arg=c("Correct", "Incorrect"),
+        col=c("green", "red"),
+        main="SVM Predictions",
+        ylab="Count")
+
 svm_accuracy <- sum(diag(svm_table)) / sum(svm_table)
 
 # Naive Bayes Classification
@@ -352,7 +385,51 @@ nb_table <- table(Predicted=nb_pred, Actual=test.data$NObeyesdad)
 debug_print("Confusion matrix: Naive Bayes")
 print(nb_table)
 
+# Visualize Naive Bayes confusion matrix as heatmap
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))
+image(1:ncol(nb_table), 1:nrow(nb_table), t(as.matrix(nb_table)), 
+      col=colorRampPalette(c("white", "lightyellow", "orange"))(20),
+      xlab="Actual", ylab="Predicted", main="Naive Bayes Confusion Matrix",
+      xaxt="n", yaxt="n")
+axis(1, at=1:ncol(nb_table), labels=colnames(nb_table), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(nb_table), labels=rownames(nb_table), las=2, cex.axis=0.6)
+text(rep(1:ncol(nb_table), each=nrow(nb_table)), 
+     rep(1:nrow(nb_table), ncol(nb_table)), 
+        as.vector(t(nb_table)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
+# Bar plot of correct vs incorrect predictions for Naive Bayes
+correct_nb <- sum(diag(nb_table))
+incorrect_nb <- sum(nb_table) - correct_nb
+barplot(c(correct_nb, incorrect_nb), 
+        names.arg=c("Correct", "Incorrect"),
+        col=c("green", "red"),
+        main="Naive Bayes Predictions",
+        ylab="Count")
+
 nb_accuracy <- sum(diag(nb_table)) / sum(nb_table)
+
+
+
+# Model Comparison
+accuracy_comparison <- data.frame(
+  Algorithm = c("DT", "SVM", "NB"),
+  Accuracy = c(tree_accuracy, svm_accuracy, nb_accuracy)
+)
+
+debug_print("Accuracy comparison across classifiers")
+print(accuracy_comparison)
+
+# Visualize model comparison
+barplot(accuracy_comparison$Accuracy,
+        names.arg=accuracy_comparison$Algorithm,
+        col=rainbow(3),
+        main="Classification Model Accuracy Comparison",
+        ylab="Accuracy",
+        ylim=c(0,1),
+        las=2)
+
 
 # Linear Regression - BMI Prediction
 lm_model <- lm(BMI ~ Age + Weight + Height + FCVC + NCP + CH2O + FAF + TUE,
@@ -374,23 +451,6 @@ plot(test.data$BMI, lm_pred,
      col="blue")
 abline(0, 1, col="red", lwd=2)
 
-# Model Comparison
-accuracy_comparison <- data.frame(
-  Algorithm = c("Decision Tree", "SVM", "Naive Bayes"),
-  Accuracy = c(tree_accuracy, svm_accuracy, nb_accuracy)
-)
-
-debug_print("Accuracy comparison across classifiers")
-print(accuracy_comparison)
-
-# Visualize model comparison
-barplot(accuracy_comparison$Accuracy,
-        names.arg=accuracy_comparison$Algorithm,
-        col=rainbow(3),
-        main="Classification Model Accuracy Comparison",
-        ylab="Accuracy",
-        ylim=c(0,1),
-        las=2)
 
 # Additional Analysis - Correlations
 cor_age_faf <- cor(obesity_data$Age, obesity_data$FAF)

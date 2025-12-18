@@ -44,6 +44,12 @@ obesity_data$MTRANS <- as.factor(obesity_data$MTRANS)
 obesity_data$NObeyesdad <- as.factor(obesity_data$NObeyesdad)
 obesity_data$FCVC <- as.numeric(as.character(obesity_data$FCVC))
 
+# Order obesity categories from underweight to obese for consistent plotting
+obesity_levels <- c("Insufficient_Weight", "Normal_Weight", "Overweight_Level_I", 
+                    "Overweight_Level_II", "Obesity_Type_I", "Obesity_Type_II", 
+                    "Obesity_Type_III")
+obesity_data$NObeyesdad <- factor(obesity_data$NObeyesdad, levels=obesity_levels)
+
 
 obesity_data$BMI <- obesity_data$Weight / (obesity_data$Height^2)
 
@@ -84,6 +90,8 @@ barplot(obesity_counts,
         las=2,
         cex.names=0.7)
 par(mar=c(5, 4, 4, 2))
+cat("Obesity level counts:\n")
+print(obesity_counts)
 
 par(mfrow=c(1,1))
 
@@ -162,6 +170,28 @@ legend("topright", legend=levels(obesity_data$NObeyesdad),
        col=1:length(levels(obesity_data$NObeyesdad)),
        pch=19, cex=0.6)
 
+plot(obesity_data$FAF, obesity_data$BMI,
+     col=as.numeric(obesity_data$NObeyesdad),
+     pch=19,
+     main="Physical Activity Frequency vs BMI (Negative Correlation)",
+     xlab="FAF (Physical Activity Frequency)",
+     ylab="BMI")
+legend("topright", legend=levels(obesity_data$NObeyesdad),
+       col=1:length(levels(obesity_data$NObeyesdad)),
+       pch=19, cex=0.6)
+abline(lm(BMI ~ FAF, data=obesity_data), col="red", lwd=2)
+
+plot(obesity_data$TUE, obesity_data$BMI,
+     col=as.numeric(obesity_data$NObeyesdad),
+     pch=19,
+     main="Technology Use Time vs BMI (Negative Correlation)",
+     xlab="TUE (Time Using Technology)",
+     ylab="BMI")
+legend("topright", legend=levels(obesity_data$NObeyesdad),
+       col=1:length(levels(obesity_data$NObeyesdad)),
+       pch=19, cex=0.6)
+abline(lm(BMI ~ TUE, data=obesity_data), col="red", lwd=2)
+
 
 
 par(mar=c(9, 4, 4, 2))
@@ -225,6 +255,33 @@ barplot(calc_counts,
 
 par(mfrow=c(1,1))
 
+# Additional Analysis - Correlations
+cor_age_faf <- cor(obesity_data$Age, obesity_data$FAF)
+debug_print("Correlation: Age vs FAF")
+cat("Correlation:", round(cor_age_faf, 4), "\n\n\n")
+
+cor_water_bmi <- cor(obesity_data$CH2O, obesity_data$BMI)
+debug_print("Correlation: CH2O (water) vs BMI")
+cat("Correlation:", round(cor_water_bmi, 4), "\n\n\n")
+
+avg_bmi_transport <- aggregate(obesity_data$BMI, 
+                               list(obesity_data$MTRANS), 
+                               mean)
+names(avg_bmi_transport) <- c("Transportation", "Avg_BMI")
+debug_print("Average BMI per transportation method")
+print(avg_bmi_transport)
+
+# Barplot of average BMI by transportation
+par(mar=c(7, 4, 4, 2))
+bp <- barplot(avg_bmi_transport$Avg_BMI,
+        names.arg="",
+        col=rainbow(nrow(avg_bmi_transport)),
+        main="Average BMI by Transportation Method",
+        ylab="Average BMI")
+text(x=bp, y=-0.5, labels=avg_bmi_transport$Transportation, 
+     srt=45, adj=1, xpd=TRUE, cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
 # K-Means Clustering
 cluster_data <- obesity_data[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "BMI")]
 
@@ -281,18 +338,9 @@ obesity.tree <- ctree(NObeyesdad ~ Age + Gender + Height + Weight +
                       family_history_with_overweight + FAVC + FCVC + 
                       NCP + CAEC + SMOKE + CH2O + SCC + FAF + TUE + 
                       CALC + MTRANS,
-                      data=train.data)
-
-# Display tree
+                      data=train.data)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 debug_print("Decision tree summary (ctree)")
 print(obesity.tree)
-
-# Save tree to a file with large dimensions for better visibility
-png("decision_tree.png", width=2400, height=1800, res=150)
-plot(obesity.tree, main="Decision Tree for Obesity Classification", cex=0.25, type="simple")
-dev.off()
-
-cat("\n\n>>> Decision tree saved to 'decision_tree.png' for better viewing <<<\n\n")
 
 tree_pred <- predict(obesity.tree, newdata=test.data)
 
@@ -305,10 +353,12 @@ par(mfrow=c(1,1))
 par(mar=c(10, 10, 4, 2))  # extra margin space for long class labels
 image(1:ncol(tree_table), 1:nrow(tree_table), t(as.matrix(tree_table)), 
         col=colorRampPalette(c("white", "lightblue", "darkblue"))(20),
-        xlab="Actual", ylab="Predicted", main="Decision Tree Confusion Matrix",
+        xlab="", ylab="", main="Decision Tree Confusion Matrix",
         xaxt="n", yaxt="n")
 axis(1, at=1:ncol(tree_table), labels=colnames(tree_table), las=2, cex.axis=0.6)
 axis(2, at=1:nrow(tree_table), labels=rownames(tree_table), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
 text(rep(1:ncol(tree_table), each=nrow(tree_table)), 
      rep(1:nrow(tree_table), ncol(tree_table)), 
           as.vector(t(tree_table)), col="black", cex=0.7)
@@ -352,10 +402,12 @@ par(mfrow=c(1,1))
 par(mar=c(10, 10, 4, 2))
 image(1:ncol(svm_table), 1:nrow(svm_table), t(as.matrix(svm_table)), 
       col=colorRampPalette(c("white", "lightgreen", "darkgreen"))(20),
-      xlab="Actual", ylab="Predicted", main="SVM Confusion Matrix",
+      xlab="", ylab="", main="SVM Confusion Matrix",
       xaxt="n", yaxt="n")
 axis(1, at=1:ncol(svm_table), labels=colnames(svm_table), las=2, cex.axis=0.6)
 axis(2, at=1:nrow(svm_table), labels=rownames(svm_table), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
 text(rep(1:ncol(svm_table), each=nrow(svm_table)), 
      rep(1:nrow(svm_table), ncol(svm_table)), 
         as.vector(t(svm_table)), col="black", cex=0.7)
@@ -390,10 +442,12 @@ par(mfrow=c(1,1))
 par(mar=c(10, 10, 4, 2))
 image(1:ncol(nb_table), 1:nrow(nb_table), t(as.matrix(nb_table)), 
       col=colorRampPalette(c("white", "lightyellow", "orange"))(20),
-      xlab="Actual", ylab="Predicted", main="Naive Bayes Confusion Matrix",
+      xlab="", ylab="", main="Naive Bayes Confusion Matrix",
       xaxt="n", yaxt="n")
 axis(1, at=1:ncol(nb_table), labels=colnames(nb_table), las=2, cex.axis=0.6)
 axis(2, at=1:nrow(nb_table), labels=rownames(nb_table), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
 text(rep(1:ncol(nb_table), each=nrow(nb_table)), 
      rep(1:nrow(nb_table), ncol(nb_table)), 
         as.vector(t(nb_table)), col="black", cex=0.7)
@@ -451,29 +505,242 @@ plot(test.data$BMI, lm_pred,
      col="blue")
 abline(0, 1, col="red", lwd=2)
 
+write.csv(obesity_data, "obesity_cleaned.csv", row.names=FALSE)
 
-# Additional Analysis - Correlations
-cor_age_faf <- cor(obesity_data$Age, obesity_data$FAF)
-debug_print("Correlation: Age vs FAF")
-cat("Correlation:", round(cor_age_faf, 4), "\n\n\n")
 
-cor_water_bmi <- cor(obesity_data$CH2O, obesity_data$BMI)
-debug_print("Correlation: CH2O (water) vs BMI")
-cat("Correlation:", round(cor_water_bmi, 4), "\n\n\n")
+# Linear Regression - BMI Prediction (Lifestyle Only - No Height/Weight)
+lm_model_lifestyle <- lm(BMI ~ Age + Gender + FCVC + NCP + CH2O + FAF + TUE + 
+                         family_history_with_overweight + FAVC + CAEC + 
+                         SMOKE + SCC + CALC + MTRANS,
+                         data=train.data)
 
-avg_bmi_transport <- aggregate(obesity_data$BMI, 
-                               list(obesity_data$MTRANS), 
-                               mean)
-names(avg_bmi_transport) <- c("Transportation", "Avg_BMI")
-debug_print("Average BMI per transportation method")
-print(avg_bmi_transport)
+debug_print("Linear model summary: BMI prediction (Lifestyle only)")
+print(summary(lm_model_lifestyle))
 
-# Barplot of average BMI by transportation
-barplot(avg_bmi_transport$Avg_BMI,
-        names.arg=avg_bmi_transport$Transportation,
-        col=rainbow(nrow(avg_bmi_transport)),
-        main="Average BMI by Transportation Method",
-        ylab="Average BMI",
+lm_pred_lifestyle <- predict(lm_model_lifestyle, newdata=test.data)
+
+correlation_lifestyle <- cor(lm_pred_lifestyle, test.data$BMI)
+
+# Actual vs Predicted BMI plot (Lifestyle Only)
+plot(test.data$BMI, lm_pred_lifestyle,
+     main="Actual vs Predicted BMI (Lifestyle Only)",
+     xlab="Actual BMI",
+     ylab="Predicted BMI",
+     pch=19,
+     col="darkgreen")
+abline(0, 1, col="red", lwd=2)
+
+# Comparison of linear models
+debug_print("Linear Regression Correlation Comparison")
+cat("Full Model Correlation:", round(correlation, 4), "\n")
+cat("Lifestyle-Only Correlation:", round(correlation_lifestyle, 4), "\n")
+cat("Correlation Drop:", round(correlation - correlation_lifestyle, 4), "\n\n")
+
+
+
+
+# =============================================================================
+# SECOND TRAINING PHASE: LIFESTYLE FACTORS ONLY (Excluding Height & Weight)
+# =============================================================================
+# To truly measure the impact of lifestyle factors like diet (FCVC) or activity (FAF),
+# we must exclude Weight and Height from the inputs, otherwise they completely 
+# overshadow the subtle behavioral signals we are trying to detect.
+
+debug_print("=== LIFESTYLE-ONLY MODELS (No Height/Weight) ===")
+
+# Decision Tree - Lifestyle Only
+obesity.tree.lifestyle <- ctree(NObeyesdad ~ Age + Gender + 
+                                family_history_with_overweight + FAVC + FCVC + 
+                                NCP + CAEC + SMOKE + CH2O + SCC + FAF + TUE + 
+                                CALC + MTRANS,
+                                data=train.data)
+
+debug_print("Decision tree summary (ctree) - Lifestyle only")
+print(obesity.tree.lifestyle)
+
+tree_pred_lifestyle <- predict(obesity.tree.lifestyle, newdata=test.data)
+
+tree_table_lifestyle <- table(Predicted=tree_pred_lifestyle, Actual=test.data$NObeyesdad)
+debug_print("Confusion matrix: Decision Tree (Lifestyle only)")
+print(tree_table_lifestyle)
+
+# Visualize confusion matrix as heatmap
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))
+image(1:ncol(tree_table_lifestyle), 1:nrow(tree_table_lifestyle), 
+      t(as.matrix(tree_table_lifestyle)), 
+      col=colorRampPalette(c("white", "lightblue", "darkblue"))(20),
+      xlab="", ylab="", main="Decision Tree Confusion Matrix (Lifestyle Only)",
+      xaxt="n", yaxt="n")
+axis(1, at=1:ncol(tree_table_lifestyle), labels=colnames(tree_table_lifestyle), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(tree_table_lifestyle), labels=rownames(tree_table_lifestyle), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
+text(rep(1:ncol(tree_table_lifestyle), each=nrow(tree_table_lifestyle)), 
+     rep(1:nrow(tree_table_lifestyle), ncol(tree_table_lifestyle)), 
+     as.vector(t(tree_table_lifestyle)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
+# Bar plot of correct vs incorrect predictions
+correct_lifestyle <- sum(diag(tree_table_lifestyle))
+incorrect_lifestyle <- sum(tree_table_lifestyle) - correct_lifestyle
+barplot(c(correct_lifestyle, incorrect_lifestyle), 
+        names.arg=c("Correct", "Incorrect"),
+        col=c("green", "red"),
+        main="Decision Tree Predictions (Lifestyle Only)",
+        ylab="Count",
+        ylim=c(0, max(correct_lifestyle, incorrect_lifestyle) * 1.1))
+
+tree_accuracy_lifestyle <- sum(diag(tree_table_lifestyle)) / sum(tree_table_lifestyle)
+
+
+# SVM - Lifestyle Only
+svm_model_lifestyle <- svm(NObeyesdad ~ Age + Gender + 
+                           family_history_with_overweight + FAVC + FCVC + 
+                           NCP + CAEC + SMOKE + CH2O + SCC + FAF + TUE + 
+                           CALC + MTRANS,
+                           data=train.data, 
+                           kernel="radial")
+
+svm_pred_lifestyle <- predict(svm_model_lifestyle, test.data)
+
+svm_table_lifestyle <- table(Predicted=svm_pred_lifestyle, Actual=test.data$NObeyesdad)
+debug_print("Confusion matrix: SVM (Lifestyle only)")
+print(svm_table_lifestyle)
+
+# Visualize SVM confusion matrix as heatmap
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))
+image(1:ncol(svm_table_lifestyle), 1:nrow(svm_table_lifestyle), 
+      t(as.matrix(svm_table_lifestyle)), 
+      col=colorRampPalette(c("white", "lightgreen", "darkgreen"))(20),
+      xlab="", ylab="", main="SVM Confusion Matrix (Lifestyle Only)",
+      xaxt="n", yaxt="n")
+axis(1, at=1:ncol(svm_table_lifestyle), labels=colnames(svm_table_lifestyle), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(svm_table_lifestyle), labels=rownames(svm_table_lifestyle), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
+text(rep(1:ncol(svm_table_lifestyle), each=nrow(svm_table_lifestyle)), 
+     rep(1:nrow(svm_table_lifestyle), ncol(svm_table_lifestyle)), 
+     as.vector(t(svm_table_lifestyle)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
+# Bar plot of correct vs incorrect predictions for SVM
+correct_svm_lifestyle <- sum(diag(svm_table_lifestyle))
+incorrect_svm_lifestyle <- sum(svm_table_lifestyle) - correct_svm_lifestyle
+barplot(c(correct_svm_lifestyle, incorrect_svm_lifestyle), 
+        names.arg=c("Correct", "Incorrect"),
+        col=c("green", "red"),
+        main="SVM Predictions (Lifestyle Only)",
+        ylab="Count")
+
+svm_accuracy_lifestyle <- sum(diag(svm_table_lifestyle)) / sum(svm_table_lifestyle)
+
+
+# Naive Bayes - Lifestyle Only
+nb_classifier_lifestyle <- naiveBayes(NObeyesdad ~ Age + Gender + 
+                                      family_history_with_overweight + FAVC + FCVC + 
+                                      NCP + CAEC + SMOKE + CH2O + SCC + FAF + TUE + 
+                                      CALC + MTRANS,
+                                      data=train.data)
+
+nb_pred_lifestyle <- predict(nb_classifier_lifestyle, test.data)
+
+nb_table_lifestyle <- table(Predicted=nb_pred_lifestyle, Actual=test.data$NObeyesdad)
+debug_print("Confusion matrix: Naive Bayes (Lifestyle only)")
+print(nb_table_lifestyle)
+
+# Visualize Naive Bayes confusion matrix as heatmap
+par(mfrow=c(1,1))
+par(mar=c(10, 10, 4, 2))
+image(1:ncol(nb_table_lifestyle), 1:nrow(nb_table_lifestyle), 
+      t(as.matrix(nb_table_lifestyle)), 
+      col=colorRampPalette(c("white", "lightyellow", "orange"))(20),
+      xlab="", ylab="", main="Naive Bayes Confusion Matrix (Lifestyle Only)",
+      xaxt="n", yaxt="n")
+axis(1, at=1:ncol(nb_table_lifestyle), labels=colnames(nb_table_lifestyle), las=2, cex.axis=0.6)
+axis(2, at=1:nrow(nb_table_lifestyle), labels=rownames(nb_table_lifestyle), las=2, cex.axis=0.6)
+mtext("Actual", side=1, line=7, cex=1)
+mtext("Predicted", side=2, line=7, cex=1)
+text(rep(1:ncol(nb_table_lifestyle), each=nrow(nb_table_lifestyle)), 
+     rep(1:nrow(nb_table_lifestyle), ncol(nb_table_lifestyle)), 
+     as.vector(t(nb_table_lifestyle)), col="black", cex=0.7)
+par(mar=c(5, 4, 4, 2))
+
+# Bar plot of correct vs incorrect predictions for Naive Bayes
+correct_nb_lifestyle <- sum(diag(nb_table_lifestyle))
+incorrect_nb_lifestyle <- sum(nb_table_lifestyle) - correct_nb_lifestyle
+barplot(c(correct_nb_lifestyle, incorrect_nb_lifestyle), 
+        names.arg=c("Correct", "Incorrect"),
+        col=c("green", "red"),
+        main="Naive Bayes Predictions (Lifestyle Only)",
+        ylab="Count")
+
+nb_accuracy_lifestyle <- sum(diag(nb_table_lifestyle)) / sum(nb_table_lifestyle)
+
+
+# Model Comparison - Lifestyle Only
+accuracy_comparison_lifestyle <- data.frame(
+  Algorithm = c("DT", "SVM", "NB"),
+  Accuracy = c(tree_accuracy_lifestyle, svm_accuracy_lifestyle, nb_accuracy_lifestyle)
+)
+
+debug_print("Accuracy comparison across classifiers (Lifestyle only)")
+print(accuracy_comparison_lifestyle)
+
+# Visualize model comparison - Lifestyle only
+barplot(accuracy_comparison_lifestyle$Accuracy,
+        names.arg=accuracy_comparison_lifestyle$Algorithm,
+        col=rainbow(3),
+        main="Classification Model Accuracy Comparison (Lifestyle Only)",
+        ylab="Accuracy",
+        ylim=c(0,1),
         las=2)
 
-write.csv(obesity_data, "obesity_cleaned.csv", row.names=FALSE)
+
+# Combined Comparison: Full Model vs Lifestyle-Only Model
+comparison_full <- data.frame(
+  Model = c("DT (Full)", "SVM (Full)", "NB (Full)", 
+            "DT (Lifestyle)", "SVM (Lifestyle)", "NB (Lifestyle)"),
+  Accuracy = c(tree_accuracy, svm_accuracy, nb_accuracy,
+               tree_accuracy_lifestyle, svm_accuracy_lifestyle, nb_accuracy_lifestyle),
+  Type = c("Full", "Full", "Full", "Lifestyle", "Lifestyle", "Lifestyle")
+)
+
+debug_print("Full comparison: Full models vs Lifestyle-only models")
+print(comparison_full)
+
+# Side-by-side comparison visualization
+par(mar=c(8, 4, 4, 2))
+bp <- barplot(comparison_full$Accuracy,
+              names.arg="",
+              col=c("darkblue", "darkgreen", "darkorange", 
+                    "lightblue", "lightgreen", "lightyellow"),
+              main="Model Accuracy: Full Features vs Lifestyle Only",
+              ylab="Accuracy",
+              ylim=c(0, 1),
+              beside=TRUE)
+text(x=bp, y=-0.05, labels=comparison_full$Model, 
+     srt=45, adj=1, xpd=TRUE, cex=0.8)
+legend("topright", 
+       legend=c("Full Model (with Height/Weight)", "Lifestyle Only (no Height/Weight)"),
+       fill=c("darkblue", "lightblue"),
+       cex=0.8)
+par(mar=c(5, 4, 4, 2))
+
+
+# Calculate accuracy drop to quantify impact of excluding Height/Weight
+accuracy_drop <- data.frame(
+  Algorithm = c("Decision Tree", "SVM", "Naive Bayes"),
+  Full_Accuracy = c(tree_accuracy, svm_accuracy, nb_accuracy),
+  Lifestyle_Accuracy = c(tree_accuracy_lifestyle, svm_accuracy_lifestyle, nb_accuracy_lifestyle),
+  Accuracy_Drop = c(tree_accuracy - tree_accuracy_lifestyle,
+                    svm_accuracy - svm_accuracy_lifestyle,
+                    nb_accuracy - nb_accuracy_lifestyle),
+  Percentage_Drop = c((tree_accuracy - tree_accuracy_lifestyle) / tree_accuracy * 100,
+                      (svm_accuracy - svm_accuracy_lifestyle) / svm_accuracy * 100,
+                      (nb_accuracy - nb_accuracy_lifestyle) / nb_accuracy * 100)
+)
+
+debug_print("Impact of excluding Height & Weight")
+print(accuracy_drop)
